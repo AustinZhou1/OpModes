@@ -1,0 +1,166 @@
+package org.firstinspires.ftc.teamcode;
+
+/*
+Program name: NudgeControl
+Author: Sam Wagner
+Original date: 11/23/2016
+Modification date: 12/7/2016
+Project description: This code is a TeleOp which allows the robot's
+driver to use the nudge buttons on both controllers to steer the robot.
+ */
+
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.HardwareMap;
+
+@TeleOp(name="NudgeControl", group="First")
+public class NudgeControl extends LinearOpMode {
+
+    
+    }
+    static enum NudgeState {INIT, NORMAL,START, WAIT, EXTEND};
+static final long NUDGEDURATION = 50;
+static final double NUDGESPEED = 40.00;
+
+private DcMotor mtrRF, mtrRM, mtrRB;
+private DcMotor mtrLF, mtrLM, mtrLB;
+private boolean dpad_up, dpad_right, dpad_down, dpad_left;
+private boolean prev_up, prev_right, prev_down, prev_left;
+private boolean nudgeClick, nudgeDone;
+private NudgeState nudgeState = NudgeState.INIT;
+private long nudgeStarted, nudgeDuration;
+private float leftY, rightX, robotSpeed, leftMultiplier, rightMultiplier;
+
+private void initHardware() {
+    DcMotor mtrRF = hardwareMap.dcMotor.get("mtrRF");
+    DcMotor mtrRM = hardwareMap.dcMotor.get("mtrRM");
+    DcMotor mtrRB = hardwareMap.dcMotor.get("mtrRB");
+    DcMotor mtrLF = hardwareMap.dcMotor.get("mtrLF");
+    DcMotor mtrLM = hardwareMap.dcMotor.get("mtrLM");
+    DcMotor mtrLB = hardwareMap.dcMotor.get("mtrLB");
+
+    mtrRF.setDirection(DcMotor.Direction.REVERSE);
+    mtrRM.setDirection(DcMotor.Direction.FORWARD);
+    mtrRB.setDirection(DcMotor.Direction.FORWARD);
+    mtrLF.setDirection(DcMotor.Direction.REVERSE);
+    mtrLM.setDirection(DcMotor.Direction.REVERSE);
+    mtrLB.setDirection(DcMotor.Direction.REVERSE);
+
+    mtrRF.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+    mtrRM.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+    mtrRB.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+    mtrLF.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+    mtrLM.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+    mtrLB.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+}
+
+private void updateHardware() {
+mtrRF.setPower(rightMultiplier * robotSpeed);
+mtrRM.setPower(rightMultiplier * robotSpeed);
+mtrRB.setPower(rightMultiplier * robotSpeed);
+mtrLF.setPower(leftMultiplier * robotSpeed);
+mtrLM.setPower(leftMultiplier * robotSpeed);
+mtrLB.setPower(leftMultiplier * robotSpeed);
+}
+
+private void mergeGamePads() {
+    dpad_up = gamepad1.dpad_up || gamepad2.dpad_up;
+    dpad_down = gamepad1.dpad_down || gamepad2.dpad_down;
+
+}
+
+    void detectNudgeClick() {
+        nudgeClick 	= (dpad_up && !prev_up) || (dpad_right && !prev_right)
+                || (dpad_down && !prev_down) || (dpad_left && !prev_left);
+        prev_up	    = dpad_up;
+        prev_right	= dpad_right;
+        prev_down	= dpad_down;
+        prev_left	= dpad_left;
+    }
+
+    void executeNudgeControl(){
+        switch(nudgeState){
+        case INIT:
+            prev_up=false;
+            prev_right=false;
+            prev_down=false;
+            prev_left=false;
+            nudgeState=nudgeState.NORMAL;
+            break;
+        case NORMAL:
+        robotSpeed=(float)(-100.0*leftY);
+        leftMultiplier=(rightX<-0.05)?(1+2*rightX):1.0;
+        rightMultiplier=(rightX>0.05)?(1-2*rightX):1.0;
+
+        detectNudgeClick();
+        if(nudgeClick){
+        nudgeState=nudgeState.START;
+        }
+        break;
+        case START:
+        robotSpeed=(float)NUDGESPEED;
+        if(prev_up){
+        leftMultiplier=(float)((prev_left)?0.0:1.0);
+        rightMultiplier=(float)((prev_right)?0.0:1.0);
+        }else{
+        if(prev_down){
+        leftMultiplier=(float)((prev_left)?0.0:-1.0);
+        rightMultiplier=(float)((prev_right)?0.0:-1.0);
+        }else if(prev_right){
+        leftMultiplier=(float)1.0;
+        rightMultiplier=(float)-1.0;
+        }else if(prev_left){
+        leftMultiplier=(float)-1.0;
+        rightMultiplier=(float)1.0;
+        }else{
+        leftMultiplier=(float)0.0;
+        rightMultiplier=(float)0.0;
+
+        nudgeStarted=System.currentTimeMillis();
+        nudgeDuration=NUDGEDURATION;
+
+        nudgeState=nudgeState.WAIT;
+        break;
+        case WAIT:
+        nudgeDone=(System.currentTimeMillis()-nudgeStarted)>nudgeDuration;
+        detectNudgeClick();
+        if(nudgeClick){
+        nudgeState=nudgeState.EXTEND;
+        }else if(nudgeDone){
+        nudgeState=nudgeState.NORMAL;
+        }
+        break;
+        case EXTEND:
+        nudgeDuration+=NUDGEDURATION;
+        nudgeState=nudgeState.WAIT;
+        break;
+        }
+        }
+        }
+@Override
+public void runOpMode() throws InterruptedException {
+        initHardware();
+        telemetry.addData("Say", "Hello Driver");
+        telemetry.update();
+
+        waitForStart();
+
+        while (opModeIsActive()) {
+        mergeGamePads();
+        executeNudgeControl();
+        updateHardware();
+
+        telemetry.addData("Sticks",  "leftY = %.3f, rightX = %.3f", leftY, rightX);
+        telemetry.addData("Controls",  "rSpd = %.1f, lMlt = %.2f, rMlt = %.2f",
+        robotSpeed, leftMultiplier, rightMultiplier);
+        telemetry.addData("Position", "left = %d, right = %d",
+        mtrLM.getCurrentPosition(), mtrRM.getCurrentPosition());
+        telemetry.update();
+
+        telemetry.update();
+        }
+        }
+    }
+}
