@@ -9,6 +9,8 @@ package org.firstinspires.ftc.teamcode;
  *                      - Fixed some logic errors
  *                      - Made some logic more readable
  *                      - Added abort transition for active nudge state
+ *                      12/9/2016 by Coach Ollie
+ *                      - Fixed gamepad inputs and one motor direction
  * Project description: This code is a TeleOp which allows the robot's
  *                      driver to use the nudge buttons on both controllers to steer the robot.
  *
@@ -53,7 +55,7 @@ public class NudgeControl extends LinearOpMode {
         mtrLB = hardwareMap.dcMotor.get("mtrLB");
 
                                                 // Set directions
-        mtrRF.setDirection(DcMotor.Direction.REVERSE);      // THIS IS A TEMPORARY FIX
+        mtrRF.setDirection(DcMotor.Direction.FORWARD);
         mtrRM.setDirection(DcMotor.Direction.FORWARD);
         mtrRB.setDirection(DcMotor.Direction.FORWARD);
         mtrLF.setDirection(DcMotor.Direction.REVERSE);
@@ -102,13 +104,14 @@ public class NudgeControl extends LinearOpMode {
             leftY = 0.0;
             rightX = 0.0;
         } else {
-            double y1   = Math.abs(gamepad1.left_stick_y);
-            double x1   = Math.abs(gamepad1.right_stick_x);
-            double y2   = Math.abs(gamepad2.left_stick_y);
-            double x2   = Math.abs(gamepad2.right_stick_x);
-
+            double y1   = gamepad1.left_stick_y;
+            double x1   = gamepad1.right_stick_x;
+            double y2   = gamepad2.left_stick_y;
+            double x2   = gamepad2.right_stick_x;
+            double sum1 = Math.abs(y1) + Math.abs(x1);
+            double sum2 = Math.abs(y2) + Math.abs(x2);
                                                 // Use the more active joystick
-            if ((y1 + x1) > (y2 + x2)) {
+            if (sum1 > sum2) {
                 leftY   = y1;
                 rightX  = x1;
             } else {
